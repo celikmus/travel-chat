@@ -33,7 +33,7 @@
     "d3-scale": "^4.0.2",
     "date-fns": "^3.3.1",
     "focus-trap-react": "^10.2.3",
-    "framer-motion": "^10.18.0",
+    "framer-motion": "^11.2.10",
     "geist": "^1.2.1",
     "nanoid": "^5.0.4",
     "next": "14.2.3",
