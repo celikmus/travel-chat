@@ -8,7 +8,7 @@ import {
   streamUI,
   createStreamableValue
 } from 'ai/rsc'
-import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAI, openai } from '@ai-sdk/openai'
 
 import {
   spinner,
@@ -35,6 +35,8 @@ import { saveChat } from '@/app/actions'
 import { SpinnerMessage, UserMessage } from '@/components/stocks/message'
 import { Chat, Message } from '@/lib/types'
 import { auth } from '@/auth'
+import {generateObject, generateText, tool} from "ai";
+import Location from "@/components/location";
 
 const groq = createOpenAI({
   baseURL: process.env.GROQ_BASE_URL,
@@ -128,27 +130,28 @@ async function submitUserMessage(content: string) {
     ]
   })
 
-  let textStream: undefined | ReturnType<typeof createStreamableValue<string>>
+  let textStream: undefined | ReturnType<typeof createStreamableValue<any>>
   let textNode: undefined | React.ReactNode
+  let locationBuilding = ''
+  let pauseStreaming = false
+  const locationStream = createStreamableUI();
 
   const result = await streamUI({
-    model: groq('llama3-8b-8192'),
+    // model: groq('llama3-8b-8192'),
+    model: openai('gpt-3.5-turbo'),
     initial: <SpinnerMessage />,
+
     system: `\
-    You are a stock trading conversation bot and you can help users buy stocks, step by step.
-    You and the user can discuss stock prices and the user can adjust the amount of stocks they want to buy, or place an order, in the UI.
-    
-    Messages inside [] means that it's a UI element or a user event. For example:
-    - "[Price of AAPL = 100]" means that an interface of the stock price of AAPL is shown to the user.
-    - "[User has changed the amount of AAPL to 10]" means that the user has changed the amount of AAPL to 10 in the UI.
-    
-    If the user requests purchasing a stock, call \`show_stock_purchase_ui\` to show the purchase UI.
-    If the user just wants the price, call \`showStockPrice\` to show the price.
-    If you want to show trending stocks, call \`listStocks\`.
-    If you want to show events, call \`get_events\`.
-    If the user wants to sell stock, or complete another impossible task, respond that you are a demo and cannot do that.
-    
-    Besides that, you can also chat with users and do some calculations if needed.`,
+    You are a helpful travel conversation bot and you can help users by giving advice on places.
+    You and the user can chat about their travel interests (e.g. historical sites, beach, culture etc) you may give interesting ideas to them based on their likes.
+
+    When providing responses, it is **crucial** that you clearly enclose location names in double brackets like this: [[location name]]. For example:
+    - "I recommend visiting [[New York City]]."
+    - "The Eiffel Tower is a must-see when you're in [[Paris]]."
+    - "If you go to [[Tokyo]], make sure to check out Shibuya Crossing."
+
+    Ensure that **every** location name is enclosed in double brackets. Do not use any other formatting like bold or italics for location names. This is important to ensure they are detected and processed correctly.    
+    `,
     messages: [
       ...aiState.get().messages.map((message: any) => ({
         role: message.role,
@@ -156,15 +159,15 @@ async function submitUserMessage(content: string) {
         name: message.name
       }))
     ],
-    text: ({ content, done, delta }) => {
+    text: async ({ content, done, delta }) => {
       if (!textStream) {
-        textStream = createStreamableValue('')
+        textStream = createStreamableValue('') // MC: Should this be a Streamable UI stream?
         textNode = <BotMessage content={textStream.value} />
       }
 
       if (done) {
         textStream.done()
-        aiState.done({
+        aiState.update({
           ...aiState.get(),
           messages: [
             ...aiState.get().messages,
@@ -176,310 +179,60 @@ async function submitUserMessage(content: string) {
           ]
         })
       } else {
-        textStream.update(delta)
+        console.log('delta: ', delta)
+        if (delta.includes('[[')) {
+          // skip
+          console.log('location text starting...')
+          pauseStreaming = true
+          return
+        } else if (delta.includes(']]')) {
+          // stream locationBuilding
+          pauseStreaming = false
+        }
+
+        if (pauseStreaming) {
+          // don't stream
+          locationBuilding += delta
+          console.log('stream is paused, current locationBuilding:', locationBuilding)
+          return
+        } else {
+          if (locationBuilding) {
+            console.log('Initiating location stream...')
+            // process locationBuilding and stream
+            const location = locationBuilding
+            locationBuilding = ''
+            // Create a new stream here and update it upon async
+            const locationTemp = <Location location={location} data={locationStream.value as any} />
+            ( async () => {
+              console.log('calling process function...')
+              const processedLocation = await processLocation(location);
+              locationStream.done(processedLocation)
+            })().then(() => { console.log('IIFE complete')})
+            textStream.update(locationTemp);
+          } else {
+            // innocent delta, stream it
+            textStream.update(delta)
+          }
+        }
       }
 
       return textNode
     },
-    tools: {
-      listStocks: {
-        description: 'List three imaginary stocks that are trending.',
-        parameters: z.object({
-          stocks: z.array(
-            z.object({
-              symbol: z.string().describe('The symbol of the stock'),
-              price: z.number().describe('The price of the stock'),
-              delta: z.number().describe('The change in price of the stock')
-            })
-          )
-        }),
-        generate: async function* ({ stocks }) {
-          yield (
-            <BotCard>
-              <StocksSkeleton />
-            </BotCard>
-          )
-
-          await sleep(1000)
-
-          const toolCallId = nanoid()
-
-          aiState.done({
-            ...aiState.get(),
-            messages: [
-              ...aiState.get().messages,
-              {
-                id: nanoid(),
-                role: 'assistant',
-                content: [
-                  {
-                    type: 'tool-call',
-                    toolName: 'listStocks',
-                    toolCallId,
-                    args: { stocks }
-                  }
-                ]
-              },
-              {
-                id: nanoid(),
-                role: 'tool',
-                content: [
-                  {
-                    type: 'tool-result',
-                    toolName: 'listStocks',
-                    toolCallId,
-                    result: stocks
-                  }
-                ]
-              }
-            ]
-          })
-
-          return (
-            <BotCard>
-              <Stocks props={stocks} />
-            </BotCard>
-          )
-        }
-      },
-      showStockPrice: {
-        description:
-          'Get the current stock price of a given stock or currency. Use this to show the price to the user.',
-        parameters: z.object({
-          symbol: z
-            .string()
-            .describe(
-              'The name or symbol of the stock or currency. e.g. DOGE/AAPL/USD.'
-            ),
-          price: z.number().describe('The price of the stock.'),
-          delta: z.number().describe('The change in price of the stock')
-        }),
-        generate: async function* ({ symbol, price, delta }) {
-          yield (
-            <BotCard>
-              <StockSkeleton />
-            </BotCard>
-          )
-
-          await sleep(1000)
-
-          const toolCallId = nanoid()
-
-          aiState.done({
-            ...aiState.get(),
-            messages: [
-              ...aiState.get().messages,
-              {
-                id: nanoid(),
-                role: 'assistant',
-                content: [
-                  {
-                    type: 'tool-call',
-                    toolName: 'showStockPrice',
-                    toolCallId,
-                    args: { symbol, price, delta }
-                  }
-                ]
-              },
-              {
-                id: nanoid(),
-                role: 'tool',
-                content: [
-                  {
-                    type: 'tool-result',
-                    toolName: 'showStockPrice',
-                    toolCallId,
-                    result: { symbol, price, delta }
-                  }
-                ]
-              }
-            ]
-          })
-
-          return (
-            <BotCard>
-              <Stock props={{ symbol, price, delta }} />
-            </BotCard>
-          )
-        }
-      },
-      showStockPurchase: {
-        description:
-          'Show price and the UI to purchase a stock or currency. Use this if the user wants to purchase a stock or currency.',
-        parameters: z.object({
-          symbol: z
-            .string()
-            .describe(
-              'The name or symbol of the stock or currency. e.g. DOGE/AAPL/USD.'
-            ),
-          price: z.number().describe('The price of the stock.'),
-          numberOfShares: z
-            .number()
-            .describe(
-              'The **number of shares** for a stock or currency to purchase. Can be optional if the user did not specify it.'
-            )
-        }),
-        generate: async function* ({ symbol, price, numberOfShares = 100 }) {
-          const toolCallId = nanoid()
-
-          if (numberOfShares <= 0 || numberOfShares > 1000) {
-            aiState.done({
-              ...aiState.get(),
-              messages: [
-                ...aiState.get().messages,
-                {
-                  id: nanoid(),
-                  role: 'assistant',
-                  content: [
-                    {
-                      type: 'tool-call',
-                      toolName: 'showStockPurchase',
-                      toolCallId,
-                      args: { symbol, price, numberOfShares }
-                    }
-                  ]
-                },
-                {
-                  id: nanoid(),
-                  role: 'tool',
-                  content: [
-                    {
-                      type: 'tool-result',
-                      toolName: 'showStockPurchase',
-                      toolCallId,
-                      result: {
-                        symbol,
-                        price,
-                        numberOfShares,
-                        status: 'expired'
-                      }
-                    }
-                  ]
-                },
-                {
-                  id: nanoid(),
-                  role: 'system',
-                  content: `[User has selected an invalid amount]`
-                }
-              ]
-            })
-
-            return <BotMessage content={'Invalid amount'} />
-          } else {
-            aiState.done({
-              ...aiState.get(),
-              messages: [
-                ...aiState.get().messages,
-                {
-                  id: nanoid(),
-                  role: 'assistant',
-                  content: [
-                    {
-                      type: 'tool-call',
-                      toolName: 'showStockPurchase',
-                      toolCallId,
-                      args: { symbol, price, numberOfShares }
-                    }
-                  ]
-                },
-                {
-                  id: nanoid(),
-                  role: 'tool',
-                  content: [
-                    {
-                      type: 'tool-result',
-                      toolName: 'showStockPurchase',
-                      toolCallId,
-                      result: {
-                        symbol,
-                        price,
-                        numberOfShares
-                      }
-                    }
-                  ]
-                }
-              ]
-            })
-
-            return (
-              <BotCard>
-                <Purchase
-                  props={{
-                    numberOfShares,
-                    symbol,
-                    price: +price,
-                    status: 'requires_action'
-                  }}
-                />
-              </BotCard>
-            )
-          }
-        }
-      },
-      getEvents: {
-        description:
-          'List funny imaginary events between user highlighted dates that describe stock activity.',
-        parameters: z.object({
-          events: z.array(
-            z.object({
-              date: z
-                .string()
-                .describe('The date of the event, in ISO-8601 format'),
-              headline: z.string().describe('The headline of the event'),
-              description: z.string().describe('The description of the event')
-            })
-          )
-        }),
-        generate: async function* ({ events }) {
-          yield (
-            <BotCard>
-              <EventsSkeleton />
-            </BotCard>
-          )
-
-          await sleep(1000)
-
-          const toolCallId = nanoid()
-
-          aiState.done({
-            ...aiState.get(),
-            messages: [
-              ...aiState.get().messages,
-              {
-                id: nanoid(),
-                role: 'assistant',
-                content: [
-                  {
-                    type: 'tool-call',
-                    toolName: 'getEvents',
-                    toolCallId,
-                    args: { events }
-                  }
-                ]
-              },
-              {
-                id: nanoid(),
-                role: 'tool',
-                content: [
-                  {
-                    type: 'tool-result',
-                    toolName: 'getEvents',
-                    toolCallId,
-                    result: events
-                  }
-                ]
-              }
-            ]
-          })
-
-          return (
-            <BotCard>
-              <Events props={events} />
-            </BotCard>
-          )
-        }
-      }
-    }
+    // tools: {
+    //   formatLocation: {
+    //     description: 'Format the given location name. Use this to provide a glimpse of the location with a picture of a landmark and a short description of the landmark in relation to the location. For all other strings continue with your text as usual.',
+    //     parameters: z.object({
+    //       location: z.string().describe('The name of the location'),
+    //       url: z.string().describe('The URL of a picture of a landmark for the location, e.g. https://example.com/public/brooklyn-bridge.jpeg'),
+    //       info: z.string().describe('A short description of the landmark and how it is significant for the given location')
+    //     }),
+    //     generate: async function *({ location, url, info}){
+    //       yield <p>generating output...</p>
+    //       console.log('in generate')
+    //       return <b>{location}: {url}: {info} </b>
+    //     }
+    //   },
+    // }
   })
 
   return {
@@ -487,6 +240,44 @@ async function submitUserMessage(content: string) {
     display: result.value
   }
 }
+
+async function processLocation(location: string) {
+  // Gather landmark information from the LLM
+  console.log('processing location: ', location)
+  const { url, info } = await gatherLandmarkInfo(location);
+
+  // Call the formatLocation function
+  // await callFormatLocationFunction(location, url, info);
+
+  // Replace the location name with the formatted output in the delta text
+  return <span className="text-red-600">{location}: {url} : {info}</span>;
+}
+
+async function gatherLandmarkInfo(locationName: string) {
+  // Use the LLM to get landmark URL and info
+  const prompt = `
+  Provide a landmark for ${locationName} along with a URL to a picture of the landmark and a short description of the landmark. Ensure that you call \`prepareLandmarkInfo\` to prepare the response.
+  `;
+  const response = await generateObject({
+    model: openai('gpt-3.5-turbo'),
+    schema: z.object({
+          url: z.string().describe('URL of the landmark picture'),
+          info: z.string().describe('Short description of the landmark')
+        }),
+    prompt
+  });
+  const { url, info } = response.object as any
+
+  return { url, info };
+}
+
+async function callFormatLocationFunction(location:string, url:string, info: string) {
+  // Implement the actual call to the formatLocation function here
+  console.log('Calling formatLocation function with:', { location, url, info });
+  // Simulating the function call with a delay
+  return `${location}: ${url} : ${info}`
+}
+
 
 export type AIState = {
   chatId: string
@@ -560,11 +351,10 @@ export const getUIStateFromAIState = (aiState: Chat) => {
       display:
         message.role === 'tool' ? (
           message.content.map(tool => {
-            return tool.toolName === 'listStocks' ? (
+            return tool.toolName === 'formatLocation' ? (
               <BotCard>
                 {/* TODO: Infer types based on the tool result*/}
-                {/* @ts-expect-error */}
-                <Stocks props={tool.result} />
+                <p>MC: When do we get here?</p>
               </BotCard>
             ) : tool.toolName === 'showStockPrice' ? (
               <BotCard>
