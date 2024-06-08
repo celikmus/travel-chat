@@ -6,7 +6,7 @@ import {
   getMutableAIState,
   getAIState,
   streamUI,
-  createStreamableValue
+  createStreamableValue, readStreamableValue
 } from 'ai/rsc'
 import { createOpenAI, openai } from '@ai-sdk/openai'
 
@@ -134,7 +134,7 @@ async function submitUserMessage(content: string) {
   let textNode: undefined | React.ReactNode
   let locationBuilding = ''
   let pauseStreaming = false
-  const locationStream = createStreamableUI();
+  const locationStream = createStreamableValue();
 
   const result = await streamUI({
     // model: groq('llama3-8b-8192'),
@@ -162,7 +162,7 @@ async function submitUserMessage(content: string) {
     text: async ({ content, done, delta }) => {
       if (!textStream) {
         textStream = createStreamableValue('') // MC: Should this be a Streamable UI stream?
-        textNode = <BotMessage content={textStream.value} />
+        textNode = <BotMessage content={textStream.value} data={locationStream.value as any} />
       }
 
       if (done) {
@@ -178,8 +178,9 @@ async function submitUserMessage(content: string) {
             }
           ]
         })
-      } else {
-        console.log('delta: ', delta)
+      } else  {
+          // textStream.update(delta)
+
         if (delta.includes('[[')) {
           // skip
           console.log('location text starting...')
@@ -202,13 +203,37 @@ async function submitUserMessage(content: string) {
             const location = locationBuilding
             locationBuilding = ''
             // Create a new stream here and update it upon async
-            const locationTemp = <Location location={location} data={locationStream.value as any} />
+            const locationTemp = <Location data={locationStream.value as any} />
             ( async () => {
               console.log('calling process function...')
-              const processedLocation = await processLocation(location);
+              const processedLocation = await processContent(location);
               locationStream.done(processedLocation)
+              const aiMessages = aiState.get().messages
+              aiState.done({
+                ...aiState.get(),
+                messages: [
+                ...aiMessages.slice(0, -1),
+                  {
+                    ...aiMessages.at(-1) as any,
+                    location: processedLocation
+                  }
+                ]
+              })
             })().then(() => { console.log('IIFE complete')})
-            textStream.update(locationTemp);
+            textStream.update(location);
+            locationStream.update(locationTemp)
+            aiState.update({
+              ...aiState.get(),
+              messages: [
+                ...aiState.get().messages,
+                {
+                  id: nanoid(),
+                  role: 'assistant',
+                  content,
+                  location: ''
+                }
+              ]
+            })
           } else {
             // innocent delta, stream it
             textStream.update(delta)
@@ -239,6 +264,45 @@ async function submitUserMessage(content: string) {
     id: nanoid(),
     display: result.value
   }
+}
+
+async function processContent(content: string) {
+  await new Promise((res) => setTimeout(res, 1000))
+  return content + '<span class="text-red-400">hello</span>'
+  // if (delta.includes('[[')) {
+  //   // skip
+  //   console.log('location text starting...')
+  //   pauseStreaming = true
+  //   return
+  // } else if (delta.includes(']]')) {
+  //   // stream locationBuilding
+  //   pauseStreaming = false
+  // }
+  //
+  // if (pauseStreaming) {
+  //   // don't stream
+  //   locationBuilding += delta
+  //   console.log('stream is paused, current locationBuilding:', locationBuilding)
+  //   return
+  // } else {
+  //   if (locationBuilding) {
+  //     console.log('Initiating location stream...')
+  //     // process locationBuilding and stream
+  //     const location = locationBuilding
+  //     locationBuilding = ''
+  //     // Create a new stream here and update it upon async
+  //     const locationTemp = <Location location={location} data={locationStream.value as any} />
+  //     ( async () => {
+  //       console.log('calling process function...')
+  //       const processedLocation = await processLocation(location);
+  //       locationStream.done(processedLocation)
+  //     })().then(() => { console.log('IIFE complete')})
+  //     textStream.update(locationTemp);
+  //   } else {
+  //     // innocent delta, stream it
+  //     textStream.update(delta)
+  //   }
+  // }
 }
 
 async function processLocation(location: string) {
@@ -377,7 +441,7 @@ export const getUIStateFromAIState = (aiState: Chat) => {
           <UserMessage>{message.content as string}</UserMessage>
         ) : message.role === 'assistant' &&
           typeof message.content === 'string' ? (
-          <BotMessage content={message.content} />
+          <BotMessage content={message.content} data={message.location}/>
         ) : null
     }))
 }
