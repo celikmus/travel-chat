@@ -1,8 +1,11 @@
 import { CoreMessage } from 'ai'
+import {StreamableValue} from "ai/rsc";
+import {ReactElement} from "react";
 
 export type Message = CoreMessage & {
   id: string
   location?: string
+  landmark?: StreamableValue<ReactElement>
 }
 
 export interface Chat extends Record<string, any> {

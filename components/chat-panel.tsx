@@ -78,7 +78,7 @@ export function ChatPanel({
                     ...currentMessages,
                     {
                       id: nanoid(),
-                      display: <UserMessage>{example.message}</UserMessage>
+                      text: <UserMessage>{example.message}</UserMessage>
                     }
                   ])
 

@@ -57,7 +57,7 @@ export function PromptForm({
           ...currentMessages,
           {
             id: nanoid(),
-            display: <UserMessage>{value}</UserMessage>
+            text: <UserMessage>{value}</UserMessage>
           }
         ])
 

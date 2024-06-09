@@ -9,6 +9,7 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import { StreamableValue, useStreamableValue } from 'ai/rsc'
 import { useStreamableText } from '@/lib/hooks/use-streamable-text'
+import {cloneElement, createElement, ReactElement} from "react";
 
 // Different types of message bubbles.
 
@@ -27,23 +28,27 @@ export function UserMessage({ children }: { children: React.ReactNode }) {
 
 export function BotMessage({
   content,
-  data,
+  location,
+  landmark,
   className
 }: {
   content: string | StreamableValue<string>
-  data: string | StreamableValue<string>
+  location?: string | StreamableValue<string>
+  landmark?: StreamableValue<ReactElement>
   className?: string
 }) {
   const text = useStreamableText(content)
-  const stText = useStreamableText(data)
+  const [landmarkValue] = useStreamableValue(landmark)
   return (
     <div className={cn('group relative flex items-start md:-ml-12', className)}>
       <div className="flex size-[24px] shrink-0 select-none items-center justify-center rounded-md border bg-primary text-primary-foreground shadow-sm">
         <IconOpenAI />
       </div>
-      <div className="ml-4 flex-1 space-y-2 overflow-hidden px-1">
+      <div className="ml-4 flex flex-1 space-y-2 overflow-hidden px-1">
+        <div className="flex-1">
           {text}
-        {stText}
+        </div>
+        {location && landmark && <div className="bg-pink-400">{landmarkValue}</div>}
       </div>
     </div>
   )
