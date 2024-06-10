@@ -37,7 +37,9 @@ export function BotMessageStream({
   landmark?: StreamableValue<ReactElement>
   className?: string
 }) {
+  console.log('rendering Stream message.tsx')
   const text = useStreamableText(content)
+  const locationText = useStreamableText(location || '')
   const [landmarkValue] = useStreamableValue(landmark)
   return (
     <div className={cn('group relative flex items-start md:-ml-12', className)}>
@@ -45,10 +47,10 @@ export function BotMessageStream({
         <IconOpenAI />
       </div>
       <div className="ml-4 flex flex-1 space-y-2 overflow-hidden px-1">
-        <div className="flex-1">
+        <div className={cn("flex-1 min-w-80 ease-linear duration-300 transition-width", locationText ? 'w-1/2' : 'w-full' )}>
           {text}
         </div>
-        {location && landmark && <div className="bg-pink-400">{landmarkValue}</div>}
+        <div className={cn("bg-pink-400 ease-linear transition-width duration-300", locationText && landmark ? 'visible w-1/2' : 'invisible w-0')}>{locationText && landmark && landmarkValue}</div>
       </div>
     </div>
   )
@@ -65,6 +67,7 @@ export function BotMessage({
   landmark?: ReactElement
   className?: string
 }) {
+  console.log('rendering message.tsx')
   const text = useStreamableText(content)
   return (
     <div className={cn('group relative flex items-start md:-ml-12', className)}>
@@ -72,7 +75,7 @@ export function BotMessage({
         <IconOpenAI />
       </div>
       <div className="ml-4 flex flex-1 space-y-2 overflow-hidden px-1">
-        <div className="flex-1 w-min-[12]">
+        <div className="flex-1 min-w-80">
           {text}
         </div>
         {location && landmark && <div className="flex flex-1 bg-pink-400 ">{landmark}</div>}

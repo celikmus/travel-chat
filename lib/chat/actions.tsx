@@ -126,7 +126,7 @@ async function submitUserMessage(content: string) {
     ]
   })
   const textStream = createStreamableValue('')
-  const landmarkStream = createStreamableValue(<span>Temporary</span>)
+  const landmarkStream = createStreamableValue()
   let containsLocation = false
   let isBuildingLocation = false
   let locationStream = createStreamableValue('')
@@ -177,22 +177,22 @@ async function submitUserMessage(content: string) {
         if (delta.includes('[[')) {
           isBuildingLocation = true
           containsLocation = true
-          return ' '
+          landmarkStream.update(<div className="h-full flex justify-center items-center w-1/2 transition-width duration-300 min-h-40">{spinner}</div>)
+          textStream.update(delta.replace(/\[{2}/g, ''))
+          return
         } else if (delta.includes(']]')) {
           isBuildingLocation = false
-          textStream.update(location)
+          textStream.update(delta.replace(/\]{2}/g, ''))
           locationStream.done(location)
           // textUIStream.update(<BotMessage content={textStream.value} location={location} landmark={landmarkStream.value}/>)
           // process location and update the location stream
           ;(async () => {
-            console.log('calling process function...')
-            // const processedLocation = await processLocation(location);
             const { url, info } = await gatherLandmarkInfo(location);
             const renderedLandmark = renderLandmark(location, url, info)
             console.log('processed location: ', renderedLandmark)
             landmarkStream.done(renderedLandmark)
             textUIStream.done()
-            const lastMessage = aiState.get().messages.at(-1) || { content: 'temp'}
+            const lastMessage = aiState.get().messages.at(-1) || { content: ''}
             aiState.done({
               ...aiState.get(),
               messages: [
@@ -257,7 +257,8 @@ async function submitUserMessage(content: string) {
 async function gatherLandmarkInfo(locationName: string) {
   // Use the LLM to get landmark URL and info
   const prompt = `
-  Provide a landmark for ${locationName} along with a URL to a picture of the landmark and a short description of the landmark. Ensure that you call \`prepareLandmarkInfo\` to prepare the response.
+  Provide a landmark for ${locationName} along with a URL to a picture of the landmark and a short description of the landmark. Ensure that you call \`prepareLandmarkInfo\` to prepare the response. 
+  It is crucial that the URL you provide exists and doesn't return 404, so double-check whether the image is still in that URL before you give it.
   `;
   const response = await generateObject({
     model: openai('gpt-3.5-turbo'),
