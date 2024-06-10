@@ -1,23 +1,20 @@
 'use client'
 
-import { IconOpenAI, IconUser } from '@/components/ui/icons'
-import { cn } from '@/lib/utils'
-import { spinner } from './spinner'
-import { CodeBlock } from '../ui/codeblock'
-import { MemoizedReactMarkdown } from '../markdown'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import { StreamableValue, useStreamableValue } from 'ai/rsc'
-import { useStreamableText } from '@/lib/hooks/use-streamable-text'
-import {cloneElement, createElement, ReactElement} from "react";
+import {IconOpenAI, IconUser} from '@/components/ui/icons'
+import {cn} from '@/lib/utils'
+import {spinner} from './spinner'
+import {StreamableValue, useStreamableValue} from 'ai/rsc'
+import {useStreamableText} from '@/lib/hooks/use-streamable-text'
+import {ReactElement} from "react";
 
 // Different types of message bubbles.
 
-export function UserMessage({ children }: { children: React.ReactNode }) {
+export function UserMessage({children}: { children: React.ReactNode }) {
   return (
     <div className="group relative flex items-start md:-ml-12">
-      <div className="flex size-[25px] shrink-0 select-none items-center justify-center rounded-md border bg-background shadow-sm">
-        <IconUser />
+      <div
+        className="flex size-[25px] shrink-0 select-none items-center justify-center rounded-md border bg-background shadow-sm">
+        <IconUser/>
       </div>
       <div className="ml-4 flex-1 space-y-2 overflow-hidden pl-2">
         {children}
@@ -27,11 +24,11 @@ export function UserMessage({ children }: { children: React.ReactNode }) {
 }
 
 export function BotMessageStream({
-  content,
-  location,
-  landmark,
-  className
-}: {
+                                   content,
+                                   location,
+                                   landmark,
+                                   className
+                                 }: {
   content: string | StreamableValue<string>
   location?: string | StreamableValue<string>
   landmark?: StreamableValue<ReactElement>
@@ -43,14 +40,17 @@ export function BotMessageStream({
   const [landmarkValue] = useStreamableValue(landmark)
   return (
     <div className={cn('group relative flex items-start md:-ml-12', className)}>
-      <div className="flex size-[24px] shrink-0 select-none items-center justify-center rounded-md border bg-primary text-primary-foreground shadow-sm">
-        <IconOpenAI />
+      <div
+        className="flex size-[24px] shrink-0 select-none items-center justify-center rounded-md border bg-primary text-primary-foreground shadow-sm">
+        <IconOpenAI/>
       </div>
       <div className="ml-4 flex flex-1 space-y-2 overflow-hidden px-1">
-        <div className={cn("flex-1 min-w-80 p-2 ease-linear duration-300 transition-width", location ? 'w-1/2' : 'w-full' )}>
+        <div
+          className={cn("flex-1 min-w-80 p-2 ease-linear duration-300 transition-width", location ? 'w-1/2' : 'w-full')}>
           {text}
         </div>
-        <div className={cn("bg-gray-700 text-md rounded-md ease-linear transition-width duration-300", locationText && landmark ? 'visible w-1/2' : 'invisible w-0')}>{locationText && landmark && landmarkValue}</div>
+        <div
+          className={cn("bg-gray-700 text-md rounded-md ease-linear transition-width duration-300", locationText && landmark ? 'visible w-1/2' : 'invisible w-0')}>{locationText && landmark && landmarkValue}</div>
       </div>
     </div>
   )
@@ -67,26 +67,27 @@ export function BotMessage({
   landmark?: ReactElement
   className?: string
 }) {
-  console.log('rendering message.tsx')
   const text = useStreamableText(content)
   return (
     <div className={cn('group relative flex items-start md:-ml-12', className)}>
-      <div className="flex size-[24px] shrink-0 select-none items-center justify-center rounded-md border bg-primary text-primary-foreground shadow-sm">
-        <IconOpenAI />
+      <div
+        className="flex size-[24px] shrink-0 select-none items-center justify-center rounded-md border bg-primary text-primary-foreground shadow-sm">
+        <IconOpenAI/>
       </div>
       <div className="ml-4 flex flex-1 space-y-2 overflow-hidden px-1">
         <div className="flex-1 min-w-80 p-2">
           {text}
         </div>
-        {location && landmark && <div className="flex flex-1 bg-gray-700 text-md rounded-md">{landmark}</div>}
+        {location && landmark && <div className="flex flex-1 dark:bg-gray-700 bg-gray-300 text-md rounded-md">{landmark}</div>}
       </div>
     </div>
   )
 }
+
 export function BotCard({
-  children,
-  showAvatar = true
-}: {
+                          children,
+                          showAvatar = true
+                        }: {
   children: React.ReactNode
   showAvatar?: boolean
 }) {
@@ -98,14 +99,14 @@ export function BotCard({
           !showAvatar && 'invisible'
         )}
       >
-        <IconOpenAI />
+        <IconOpenAI/>
       </div>
       <div className="ml-4 flex-1 pl-2">{children}</div>
     </div>
   )
 }
 
-export function SystemMessage({ children }: { children: React.ReactNode }) {
+export function SystemMessage({children}: { children: React.ReactNode }) {
   return (
     <div
       className={
@@ -120,8 +121,9 @@ export function SystemMessage({ children }: { children: React.ReactNode }) {
 export function SpinnerMessage() {
   return (
     <div className="group relative flex items-start md:-ml-12">
-      <div className="flex size-[24px] shrink-0 select-none items-center justify-center rounded-md border bg-primary text-primary-foreground shadow-sm">
-        <IconOpenAI />
+      <div
+        className="flex size-[24px] shrink-0 select-none items-center justify-center rounded-md border bg-primary text-primary-foreground shadow-sm">
+        <IconOpenAI/>
       </div>
       <div className="ml-4 h-[24px] flex flex-row items-center flex-1 space-y-2 overflow-hidden px-1">
         {spinner}

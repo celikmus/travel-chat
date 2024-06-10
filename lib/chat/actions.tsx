@@ -264,8 +264,7 @@ export const AI = createAI<AIState, UIState>({
       const aiState = getAIState()
 
       if (aiState) {
-        const uiState = getUIStateFromAIState(aiState as any)
-        return uiState
+        return getUIStateFromAIState(aiState as any)
       }
     } else {
       return

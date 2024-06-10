@@ -1,6 +1,4 @@
 import { CoreMessage } from 'ai'
-import {StreamableValue} from "ai/rsc";
-import {ReactElement} from "react";
 
 export type Message = CoreMessage & {
   id: string
