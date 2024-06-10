@@ -118,9 +118,10 @@ async function submitUserMessage(content: string) {
     - "I recommend visiting [[New York City]]."
     - "The Eiffel Tower is a must-see when you're in [[Paris]]."
     - "If you go to [[Tokyo]], make sure to check out Shibuya Crossing."
-    = "[[Athens]] is located in Greece, which is in Southern Europe."
+    - "[[Athens]] is located in Greece, which is in Southern Europe."
+    - "No, Athens is not near [[New York City]]."
 
-    For every assistant message, ensure that **one** location name is enclosed in double brackets. Do not use any other formatting like bold or italics for location names. This is important to ensure they are detected and processed correctly.    
+    In every response to the user, it is critical that exactly one location name is enclosed in double brackets and only if you haven't done so for that location before. Do not use any other formatting like bold or italics for location names. This is important to ensure they are detected and processed correctly.    
     `,
     messages: [
       ...aiState.get().messages.map((message: any) => ({
