@@ -47,10 +47,10 @@ export function BotMessageStream({
         <IconOpenAI />
       </div>
       <div className="ml-4 flex flex-1 space-y-2 overflow-hidden px-1">
-        <div className={cn("flex-1 min-w-80 p-2 ease-linear duration-300 transition-width", locationText ? 'w-1/2' : 'w-full' )}>
+        <div className={cn("flex-1 min-w-80 p-2 ease-linear duration-300 transition-width", location ? 'w-1/2' : 'w-full' )}>
           {text}
         </div>
-        <div className={cn("bg-pink-400 ease-linear transition-width duration-300", locationText && landmark ? 'visible w-1/2' : 'invisible w-0')}>{locationText && landmark && landmarkValue}</div>
+        <div className={cn("bg-gray-700 text-md rounded-md ease-linear transition-width duration-300", locationText && landmark ? 'visible w-1/2' : 'invisible w-0')}>{locationText && landmark && landmarkValue}</div>
       </div>
     </div>
   )
@@ -78,7 +78,7 @@ export function BotMessage({
         <div className="flex-1 min-w-80 p-2">
           {text}
         </div>
-        {location && landmark && <div className="flex flex-1 bg-pink-400 ">{landmark}</div>}
+        {location && landmark && <div className="flex flex-1 bg-gray-700 text-md rounded-md">{landmark}</div>}
       </div>
     </div>
   )
