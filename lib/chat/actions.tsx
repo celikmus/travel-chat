@@ -1,32 +1,16 @@
 import 'server-only'
 
-import {
-  createAI,
-  createStreamableUI,
-  getMutableAIState,
-  getAIState,
-  streamUI,
-  createStreamableValue,
-} from 'ai/rsc'
-import { createOpenAI, openai } from '@ai-sdk/openai'
+import {createAI, createStreamableUI, createStreamableValue, getAIState, getMutableAIState, streamUI,} from 'ai/rsc'
+import {openai} from '@ai-sdk/openai'
 
-import {
-  spinner,
-  BotMessage,
-  SystemMessage,
-} from '@/components/stocks'
+import {BotMessage, spinner, SystemMessage,} from '@/components/stocks'
 
-import { z } from 'zod'
-import {
-  formatNumber,
-  runAsyncFnWithoutBlocking,
-  sleep,
-  nanoid
-} from '@/lib/utils'
-import { saveChat } from '@/app/actions'
+import {z} from 'zod'
+import {formatNumber, nanoid, runAsyncFnWithoutBlocking, sleep} from '@/lib/utils'
+import {saveChat} from '@/app/actions'
 import {BotMessageStream, SpinnerMessage, UserMessage} from '@/components/stocks/message'
-import { Chat, Message } from '@/lib/types'
-import { auth } from '@/auth'
+import {Chat, Message} from '@/lib/types'
+import {auth} from '@/auth'
 import {generateObject} from "ai";
 import {renderLandmark} from "@/lib/renderUtils";
 
@@ -199,12 +183,13 @@ async function submitUserMessage(content: string) {
                 }
               ]
             })
-          })().then(() => {})
+          })().then(() => { location = ''})
           return
         }
 
         if (isBuildingLocation) {
           location += delta
+          textStream.update(delta)
           return
         } else {
           textStream.update(delta);
@@ -225,7 +210,7 @@ async function submitUserMessage(content: string) {
 }
 
 async function gatherLandmarkUrl(landmarkName: string) {
-  const { items } = await fetch(`https://customsearch.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_CUSTOM_SEARCH_API}&cx=${process.env.GOOGLE_PSE_CX}&safe=active&searchType=image&imgColorType=color&imgType=photo&imgSize=medium&num=1&q=${landmarkName}`).then((response) => response.json())
+  const { items } = await fetch(`https://customsearch.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_CUSTOM_SEARCH_API}&cx=${process.env.GOOGLE_PSE_CX}&safe=active&searchType=image&imgColorType=color&imgType=photo&imgSize=large&num=1&q=${landmarkName}`).then((response) => response.json())
   return items[0].link.replace(/http:\/\//, 'https://')
 }
 
