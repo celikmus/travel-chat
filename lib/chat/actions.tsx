@@ -12,15 +12,11 @@ import { createOpenAI, openai } from '@ai-sdk/openai'
 
 import {
   spinner,
-  BotCard,
   BotMessage,
   SystemMessage,
-  Stock,
-  Purchase
 } from '@/components/stocks'
 
 import { z } from 'zod'
-import { Events } from '@/components/stocks/events'
 import {
   formatNumber,
   runAsyncFnWithoutBlocking,
@@ -33,11 +29,6 @@ import { Chat, Message } from '@/lib/types'
 import { auth } from '@/auth'
 import {generateObject} from "ai";
 import {renderLandmark} from "@/lib/renderUtils";
-
-const groq = createOpenAI({
-  baseURL: process.env.GROQ_BASE_URL,
-  apiKey: process.env.GROQ_API_KEY
-})
 
 async function confirmPurchase(symbol: string, price: number, amount: number) {
   'use server'
@@ -143,8 +134,9 @@ async function submitUserMessage(content: string) {
     - "I recommend visiting [[New York City]]."
     - "The Eiffel Tower is a must-see when you're in [[Paris]]."
     - "If you go to [[Tokyo]], make sure to check out Shibuya Crossing."
+    = "[[Athens]] is located in Greece, which is in Southern Europe."
 
-    Ensure that **every** location name is enclosed in double brackets. Do not use any other formatting like bold or italics for location names. This is important to ensure they are detected and processed correctly.    
+    For every assistant message, ensure that **one** location name is enclosed in double brackets. Do not use any other formatting like bold or italics for location names. This is important to ensure they are detected and processed correctly.    
     `,
     messages: [
       ...aiState.get().messages.map((message: any) => ({
@@ -154,7 +146,6 @@ async function submitUserMessage(content: string) {
       }))
     ],
     text: async ({content, done, delta}) => {
-
       if (done) {
         textStream.done()
         if (!containsLocation) {
@@ -178,18 +169,17 @@ async function submitUserMessage(content: string) {
           isBuildingLocation = true
           containsLocation = true
           landmarkStream.update(<div className="h-full flex justify-center items-center w-1/2 transition-width duration-300 min-h-40">{spinner}</div>)
-          textStream.update(delta.replace(/\[{2}/g, ''))
+          textStream.update(delta.replace(/\[{2}/, ''))
           return
         } else if (delta.includes(']]')) {
           isBuildingLocation = false
-          textStream.update(delta.replace(/\]{2}/g, ''))
+          textStream.update(delta.replace(/\]{2}/, ''))
           locationStream.done(location)
-          // textUIStream.update(<BotMessage content={textStream.value} location={location} landmark={landmarkStream.value}/>)
-          // process location and update the location stream
+
           ;(async () => {
-            const { url, info } = await gatherLandmarkInfo(location);
+            const { name, info } = await gatherLandmarkInfo(location);
+            const url = await gatherLandmarkUrl(name)
             const renderedLandmark = renderLandmark(location, url, info)
-            console.log('processed location: ', renderedLandmark)
             landmarkStream.done(renderedLandmark)
             textUIStream.done()
             const lastMessage = aiState.get().messages.at(-1) || { content: ''}
@@ -209,12 +199,7 @@ async function submitUserMessage(content: string) {
                 }
               ]
             })
-          })().then(() => {
-            console.log('IIFE complete')
-            // If the below are not done, do them.
-            // locationStream.done()
-            // landmarkStream.done()
-          })
+          })().then(() => {})
           return
         }
 
@@ -228,21 +213,6 @@ async function submitUserMessage(content: string) {
       }
       return textUIStream.value
     },
-    // tools: {
-    //   formatLocation: {
-    //     description: 'Format the given location name. Use this to provide a glimpse of the location with a picture of a landmark and a short description of the landmark in relation to the location. For all other strings continue with your text as usual.',
-    //     parameters: z.object({
-    //       location: z.string().describe('The name of the location'),
-    //       url: z.string().describe('The URL of a picture of a landmark for the location, e.g. https://example.com/public/brooklyn-bridge.jpeg'),
-    //       info: z.string().describe('A short description of the landmark and how it is significant for the given location')
-    //     }),
-    //     generate: async function *({ location, url, info}){
-    //       yield <p>generating output...</p>
-    //       console.log('in generate')
-    //       return <b>{location}: {url}: {info} </b>
-    //     }
-    //   },
-    // }
   })
 
   return {
@@ -254,23 +224,27 @@ async function submitUserMessage(content: string) {
 
 }
 
+async function gatherLandmarkUrl(landmarkName: string) {
+  const { items } = await fetch(`https://customsearch.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_CUSTOM_SEARCH_API}&cx=${process.env.GOOGLE_PSE_CX}&safe=active&searchType=image&imgColorType=color&imgType=photo&imgSize=medium&num=1&q=${landmarkName}`).then((response) => response.json())
+  return items[0].link.replace(/http:\/\//, 'https://')
+}
+
 async function gatherLandmarkInfo(locationName: string) {
   // Use the LLM to get landmark URL and info
   const prompt = `
-  Provide a landmark for ${locationName} along with a URL to a picture of the landmark and a short description of the landmark. Ensure that you call \`prepareLandmarkInfo\` to prepare the response. 
-  It is crucial that the URL you provide exists and doesn't return 404, so double-check whether the image is still in that URL before you give it.
+  Provide a landmark for ${locationName} along with a short description of the landmark.
   `;
   const response = await generateObject({
     model: openai('gpt-3.5-turbo'),
     schema: z.object({
-          url: z.string().describe('URL of the landmark picture'),
+          name: z.string().describe('Name of the landmark'),
           info: z.string().describe('Short description of the landmark')
         }),
-    prompt
+    prompt,
   });
-  const { url, info } = response.object as any
+  const { name, info } = response.object as any
 
-  return { url, info };
+  return { name, info };
 }
 
 export type AIState = {
@@ -349,32 +323,7 @@ export const getUIStateFromAIState = (aiState: Chat) => {
       id: `${aiState.chatId}-${index}`,
       location: message.location,
       landmark: message.landmark,
-      text:
-        message.role === 'tool' ? (
-          message.content.map(tool => {
-            return tool.toolName === 'formatLocation' ? (
-              <BotCard>
-                {/* TODO: Infer types based on the tool result*/}
-                <p>MC: When do we get here?</p>
-              </BotCard>
-            ) : tool.toolName === 'showStockPrice' ? (
-              <BotCard>
-                {/* @ts-expect-error */}
-                <Stock props={tool.result} />
-              </BotCard>
-            ) : tool.toolName === 'showStockPurchase' ? (
-              <BotCard>
-                {/* @ts-expect-error */}
-                <Purchase props={tool.result} />
-              </BotCard>
-            ) : tool.toolName === 'getEvents' ? (
-              <BotCard>
-                {/* @ts-expect-error */}
-                <Events props={tool.result} />
-              </BotCard>
-            ) : null
-          })
-        ) : message.role === 'user' ? (
+      text: message.role === 'user' ? (
           <UserMessage>{message.content as string}</UserMessage>
         ) : message.role === 'assistant' &&
           typeof message.content === 'string' ? (
