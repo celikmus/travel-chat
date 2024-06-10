@@ -36,24 +36,24 @@ export function ChatPanel({
 
   const exampleMessages = [
     {
-      heading: 'What are the',
-      subheading: 'trending memecoins today?',
-      message: `What are the trending memecoins today?`
+      heading: 'What is',
+      subheading: 'the capital of France?',
+      message: `What is the capital of France?`
     },
     {
-      heading: 'What is the price of',
-      subheading: '$DOGE right now?',
-      message: 'What is the price of $DOGE right now?'
+      heading: 'Where do you recommend',
+      subheading: 'to go for a beach holiday?',
+      message: 'Where do you recommend to go for a beach holiday?'
     },
     {
-      heading: 'I would like to buy',
-      subheading: '42 $DOGE',
-      message: `I would like to buy 42 $DOGE`
+      heading: 'Is London near',
+      subheading: 'New York City?',
+      message: `Is London near New York City?`
     },
     {
-      heading: 'What are some',
-      subheading: `recent events about $DOGE?`,
-      message: `What are some recent events about $DOGE?`
+      heading: 'Where to go',
+      subheading: `for the best food?`,
+      message: `Where should I go for the best food?`
     }
   ]
 

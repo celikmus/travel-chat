@@ -34,7 +34,6 @@ export function BotMessageStream({
   landmark?: StreamableValue<ReactElement>
   className?: string
 }) {
-  console.log('rendering Stream message.tsx')
   const text = useStreamableText(content)
   const locationText = useStreamableText(location || '')
   const [landmarkValue] = useStreamableValue(landmark)
