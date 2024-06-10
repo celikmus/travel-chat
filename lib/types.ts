@@ -5,7 +5,10 @@ import {ReactElement} from "react";
 export type Message = CoreMessage & {
   id: string
   location?: string
-  landmark?: StreamableValue<ReactElement>
+  landmark?: {
+    info: string
+    url: string
+  }
 }
 
 export interface Chat extends Record<string, any> {

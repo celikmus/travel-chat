@@ -26,7 +26,7 @@ export function UserMessage({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function BotMessage({
+export function BotMessageStream({
   content,
   location,
   landmark,
@@ -54,6 +54,32 @@ export function BotMessage({
   )
 }
 
+export function BotMessage({
+                             content,
+                             location,
+                             landmark,
+                             className
+                           }: {
+  content: string | StreamableValue<string>
+  location?: string | StreamableValue<string>
+  landmark?: ReactElement
+  className?: string
+}) {
+  const text = useStreamableText(content)
+  return (
+    <div className={cn('group relative flex items-start md:-ml-12', className)}>
+      <div className="flex size-[24px] shrink-0 select-none items-center justify-center rounded-md border bg-primary text-primary-foreground shadow-sm">
+        <IconOpenAI />
+      </div>
+      <div className="ml-4 flex flex-1 space-y-2 overflow-hidden px-1">
+        <div className="flex-1 w-min-[12]">
+          {text}
+        </div>
+        {location && landmark && <div className="flex flex-1 bg-pink-400 ">{landmark}</div>}
+      </div>
+    </div>
+  )
+}
 export function BotCard({
   children,
   showAvatar = true

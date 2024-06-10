@@ -6,7 +6,7 @@ import {
   getMutableAIState,
   getAIState,
   streamUI,
-  createStreamableValue, readStreamableValue, StreamableValue
+  createStreamableValue,
 } from 'ai/rsc'
 import { createOpenAI, openai } from '@ai-sdk/openai'
 
@@ -20,11 +20,7 @@ import {
 } from '@/components/stocks'
 
 import { z } from 'zod'
-import { EventsSkeleton } from '@/components/stocks/events-skeleton'
 import { Events } from '@/components/stocks/events'
-import { StocksSkeleton } from '@/components/stocks/stocks-skeleton'
-import { Stocks } from '@/components/stocks/stocks'
-import { StockSkeleton } from '@/components/stocks/stock-skeleton'
 import {
   formatNumber,
   runAsyncFnWithoutBlocking,
@@ -32,12 +28,11 @@ import {
   nanoid
 } from '@/lib/utils'
 import { saveChat } from '@/app/actions'
-import { SpinnerMessage, UserMessage } from '@/components/stocks/message'
+import {BotMessageStream, SpinnerMessage, UserMessage} from '@/components/stocks/message'
 import { Chat, Message } from '@/lib/types'
 import { auth } from '@/auth'
-import {generateObject, generateText, tool} from "ai";
-import Location from "@/components/location";
-import {createElement, ReactElement} from "react";
+import {generateObject} from "ai";
+import {renderLandmark} from "@/lib/renderUtils";
 
 const groq = createOpenAI({
   baseURL: process.env.GROQ_BASE_URL,
@@ -114,159 +109,6 @@ async function confirmPurchase(symbol: string, price: number, amount: number) {
   }
 }
 
-// async function submitUserMessage0(content: string) {
-//   'use server'
-//
-//   const aiState = getMutableAIState<typeof AI>()
-//
-//   aiState.update({
-//     ...aiState.get(),
-//     messages: [
-//       ...aiState.get().messages,
-//       {
-//         id: nanoid(),
-//         role: 'user',
-//         content
-//       }
-//     ]
-//   })
-//
-//   let textStream: undefined | ReturnType<typeof createStreamableValue<any>>
-//   let textNode: undefined | React.ReactNode
-//   let locationBuilding = ''
-//   let pauseStreaming = false
-//   const locationStream = createStreamableValue();
-//
-//   const result = await streamUI({
-//     // model: groq('llama3-8b-8192'),
-//     model: openai('gpt-3.5-turbo'),
-//     initial: <SpinnerMessage />,
-//
-//     system: `\
-//     You are a helpful travel conversation bot and you can help users by giving advice on places.
-//     You and the user can chat about their travel interests (e.g. historical sites, beach, culture etc) you may give interesting ideas to them based on their likes.
-//
-//     When providing responses, it is **crucial** that you clearly enclose location names in double brackets like this: [[location name]]. For example:
-//     - "I recommend visiting [[New York City]]."
-//     - "The Eiffel Tower is a must-see when you're in [[Paris]]."
-//     - "If you go to [[Tokyo]], make sure to check out Shibuya Crossing."
-//
-//     Ensure that **every** location name is enclosed in double brackets. Do not use any other formatting like bold or italics for location names. This is important to ensure they are detected and processed correctly.
-//     `,
-//     messages: [
-//       ...aiState.get().messages.map((message: any) => ({
-//         role: message.role,
-//         content: message.content,
-//         name: message.name
-//       }))
-//     ],
-//     text: async ({ content, done, delta }) => {
-//       if (!textStream) {
-//         textStream = createStreamableValue('') // MC: Should this be a Streamable UI stream?
-//         textNode = <BotMessage content={textStream.value} data={locationStream.value as any} />
-//       }
-//
-//       if (done) {
-//         textStream.done()
-//         aiState.update({
-//           ...aiState.get(),
-//           messages: [
-//             ...aiState.get().messages,
-//             {
-//               id: nanoid(),
-//               role: 'assistant',
-//               content
-//             }
-//           ]
-//         })
-//       } else  {
-//           // textStream.update(delta)
-//
-//         if (delta.includes('[[')) {
-//           // skip
-//           console.log('location text starting...')
-//           pauseStreaming = true
-//           return
-//         } else if (delta.includes(']]')) {
-//           // stream locationBuilding
-//           pauseStreaming = false
-//         }
-//
-//         if (pauseStreaming) {
-//           // don't stream
-//           locationBuilding += delta
-//           console.log('stream is paused, current locationBuilding:', locationBuilding)
-//           return
-//         } else {
-//           if (locationBuilding) {
-//             console.log('Initiating location stream...')
-//             // process locationBuilding and stream
-//             const location = locationBuilding
-//             locationBuilding = ''
-//             // Create a new stream here and update it upon async
-//             const locationTemp = <Location data={locationStream.value as any} />
-//             ( async () => {
-//               console.log('calling process function...')
-//               const processedLocation = await processContent(location);
-//               locationStream.done(processedLocation)
-//               const aiMessages = aiState.get().messages
-//               aiState.done({
-//                 ...aiState.get(),
-//                 messages: [
-//                 ...aiMessages.slice(0, -1),
-//                   {
-//                     ...aiMessages.at(-1) as any,
-//                     location: processedLocation
-//                   }
-//                 ]
-//               })
-//             })().then(() => { console.log('IIFE complete')})
-//             textStream.update(location);
-//             locationStream.update(locationTemp)
-//             aiState.update({
-//               ...aiState.get(),
-//               messages: [
-//                 ...aiState.get().messages,
-//                 {
-//                   id: nanoid(),
-//                   role: 'assistant',
-//                   content,
-//                   location: ''
-//                 }
-//               ]
-//             })
-//           } else {
-//             // innocent delta, stream it
-//             textStream.update(delta)
-//           }
-//         }
-//       }
-//
-//       return textNode
-//     },
-//     // tools: {
-//     //   formatLocation: {
-//     //     description: 'Format the given location name. Use this to provide a glimpse of the location with a picture of a landmark and a short description of the landmark in relation to the location. For all other strings continue with your text as usual.',
-//     //     parameters: z.object({
-//     //       location: z.string().describe('The name of the location'),
-//     //       url: z.string().describe('The URL of a picture of a landmark for the location, e.g. https://example.com/public/brooklyn-bridge.jpeg'),
-//     //       info: z.string().describe('A short description of the landmark and how it is significant for the given location')
-//     //     }),
-//     //     generate: async function *({ location, url, info}){
-//     //       yield <p>generating output...</p>
-//     //       console.log('in generate')
-//     //       return <b>{location}: {url}: {info} </b>
-//     //     }
-//     //   },
-//     // }
-//   })
-//
-//   return {
-//     id: nanoid(),
-//     display: result.value
-//   }
-// }
-
 async function submitUserMessage(content: string) {
   'use server'
 
@@ -285,10 +127,11 @@ async function submitUserMessage(content: string) {
   })
   const textStream = createStreamableValue('')
   const landmarkStream = createStreamableValue(<span>Temporary</span>)
+  let containsLocation = false
   let isBuildingLocation = false
   let locationStream = createStreamableValue('')
   let location = ''
-  const textUIStream = createStreamableUI(<BotMessage content={textStream.value} location={locationStream.value} landmark={landmarkStream.value}/>)
+  const textUIStream = createStreamableUI(<BotMessageStream content={textStream.value} location={locationStream.value} landmark={landmarkStream.value}/>)
   const result = await streamUI({
     model: openai('gpt-3.5-turbo'),
     initial: <SpinnerMessage/>,
@@ -314,6 +157,11 @@ async function submitUserMessage(content: string) {
 
       if (done) {
         textStream.done()
+        if (!containsLocation) {
+          landmarkStream.done()
+          locationStream.done()
+          textUIStream.done()
+        }
         aiState.update({
           ...aiState.get(),
           messages: [
@@ -321,14 +169,15 @@ async function submitUserMessage(content: string) {
             {
               id: nanoid(),
               role: 'assistant',
-              content: textStream.value as string
+              content: content.replace(/\[{2}|\]{2}/g, '')
             }
           ]
         })
       } else {
         if (delta.includes('[[')) {
           isBuildingLocation = true
-          return
+          containsLocation = true
+          return ' '
         } else if (delta.includes(']]')) {
           isBuildingLocation = false
           textStream.update(location)
@@ -337,20 +186,26 @@ async function submitUserMessage(content: string) {
           // process location and update the location stream
           ;(async () => {
             console.log('calling process function...')
-            const processedLocation = await processLocation(location);
-            console.log('processed location: ', processedLocation)
-            landmarkStream.done(processedLocation)
+            // const processedLocation = await processLocation(location);
+            const { url, info } = await gatherLandmarkInfo(location);
+            const renderedLandmark = renderLandmark(location, url, info)
+            console.log('processed location: ', renderedLandmark)
+            landmarkStream.done(renderedLandmark)
             textUIStream.done()
+            const lastMessage = aiState.get().messages.at(-1) || { content: 'temp'}
             aiState.done({
               ...aiState.get(),
               messages: [
-                ...aiState.get().messages,
+                ...aiState.get().messages.slice(0, -1),
                 {
                   id: nanoid(),
                   role: 'assistant',
-                  content: textStream.value as string,
+                  content: lastMessage.content as string,
                   location,
-                  landmark: landmarkStream.value
+                  landmark: {
+                    info,
+                    url
+                  }
                 }
               ]
             })
@@ -399,59 +254,6 @@ async function submitUserMessage(content: string) {
 
 }
 
-async function processContent(content: string) {
-  await new Promise((res) => setTimeout(res, 1000))
-  return content + '<span class="text-red-400">hello</span>'
-  // if (delta.includes('[[')) {
-  //   // skip
-  //   console.log('location text starting...')
-  //   pauseStreaming = true
-  //   return
-  // } else if (delta.includes(']]')) {
-  //   // stream locationBuilding
-  //   pauseStreaming = false
-  // }
-  //
-  // if (pauseStreaming) {
-  //   // don't stream
-  //   locationBuilding += delta
-  //   console.log('stream is paused, current locationBuilding:', locationBuilding)
-  //   return
-  // } else {
-  //   if (locationBuilding) {
-  //     console.log('Initiating location stream...')
-  //     // process locationBuilding and stream
-  //     const location = locationBuilding
-  //     locationBuilding = ''
-  //     // Create a new stream here and update it upon async
-  //     const locationTemp = <Location location={location} data={locationStream.value as any} />
-  //     ( async () => {
-  //       console.log('calling process function...')
-  //       const processedLocation = await processLocation(location);
-  //       locationStream.done(processedLocation)
-  //     })().then(() => { console.log('IIFE complete')})
-  //     textStream.update(locationTemp);
-  //   } else {
-  //     // innocent delta, stream it
-  //     textStream.update(delta)
-  //   }
-  // }
-}
-
-async function processLocation(location: string) {
-  // Gather landmark information from the LLM
-  console.log('processing location: ', location)
-  const { url, info } = await gatherLandmarkInfo(location);
-
-  // Call the formatLocation function
-  // await callFormatLocationFunction(location, url, info);
-  console.log('processLocation url: ', url)
-  console.log('processLocation info: ', info)
-  // Replace the location name with the formatted output in the delta text
-  // <span key="1">{location}</span> <span key="2">{url}</span>  <span key="3">{info}
-  return <div className="text-red-600">{info}</div>;
-}
-
 async function gatherLandmarkInfo(locationName: string) {
   // Use the LLM to get landmark URL and info
   const prompt = `
@@ -470,14 +272,6 @@ async function gatherLandmarkInfo(locationName: string) {
   return { url, info };
 }
 
-async function callFormatLocationFunction(location:string, url:string, info: string) {
-  // Implement the actual call to the formatLocation function here
-  console.log('Calling formatLocation function with:', { location, url, info });
-  // Simulating the function call with a delay
-  return `${location}: ${url} : ${info}`
-}
-
-
 export type AIState = {
   chatId: string
   messages: Message[]
@@ -487,7 +281,10 @@ export type UIState = {
   id: string
   text: React.ReactNode
   location?: string
-  landmark?: StreamableValue<React.ReactNode>
+  landmark?: {
+    info: string
+    url: string
+  }
 }[]
 
 export const AI = createAI<AIState, UIState>({
@@ -580,7 +377,7 @@ export const getUIStateFromAIState = (aiState: Chat) => {
           <UserMessage>{message.content as string}</UserMessage>
         ) : message.role === 'assistant' &&
           typeof message.content === 'string' ? (
-          <BotMessage content={message.content} location={message.location} landmark={message.landmark} />
+          <BotMessage content={message.content} location={message.location} landmark={message.location && message.landmark ? renderLandmark(message.location, message.landmark.url, message.landmark.info) : undefined} />
         ) : null,
     }))
 }
