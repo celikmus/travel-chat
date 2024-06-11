@@ -87,3 +87,23 @@ export const getMessageFromCode = (resultCode: string) => {
       return 'Logged in!'
   }
 }
+
+
+export async function gatherLandmarkUrl(landmarkName: string) {
+  const queryParams = {
+    key: process.env.GOOGLE_CUSTOM_SEARCH_API,
+    cx: process.env.GOOGLE_PSE_CX,
+    safe: 'active',
+    searchType: 'image',
+    imgColorType: 'color',
+    imgType: 'photo',
+    imgSize: 'large',
+    num: 1,
+    q: landmarkName
+  }
+  const params = Object.entries(queryParams).reduce((acc, cur) => {
+    return acc + `${cur[0]}=${cur[1]}&`
+  },'').slice(0, -1)
+  const {items} = await fetch(`https://customsearch.googleapis.com/customsearch/v1?${params}`).then((response) => response.json())
+  return items[0].link.replace(/http:\/\//, 'https://')
+}
