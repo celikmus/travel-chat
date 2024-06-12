@@ -1,11 +1,10 @@
-import { type Metadata } from 'next'
-import { notFound, redirect } from 'next/navigation'
+import {type Metadata} from 'next'
+import {notFound} from 'next/navigation'
 
-import { formatDate } from '@/lib/utils'
-import { getSharedChat } from '@/app/actions'
-import { ChatList } from '@/components/chat-list'
-import { FooterText } from '@/components/footer'
-import { AI, UIState, getUIStateFromAIState } from '@/lib/chat/actions'
+import {formatDate} from '@/lib/utils'
+import {getSharedChat} from '@/app/actions'
+import {ChatList} from '@/components/chat-list'
+import {AI, getUIStateFromAIState, UIState} from '@/lib/chat/actions'
 
 export const runtime = 'edge'
 export const preferredRegion = 'home'
@@ -16,9 +15,7 @@ interface SharePageProps {
   }
 }
 
-export async function generateMetadata({
-  params
-}: SharePageProps): Promise<Metadata> {
+export async function generateMetadata({params}: SharePageProps): Promise<Metadata> {
   const chat = await getSharedChat(params.id)
 
   return {
@@ -26,7 +23,7 @@ export async function generateMetadata({
   }
 }
 
-export default async function SharePage({ params }: SharePageProps) {
+export default async function SharePage({params}: SharePageProps) {
   const chat = await getSharedChat(params.id)
 
   if (!chat || !chat?.sharePath) {
@@ -49,10 +46,9 @@ export default async function SharePage({ params }: SharePageProps) {
           </div>
         </div>
         <AI>
-          <ChatList messages={uiState} isShared={true} />
+          <ChatList messages={uiState} isShared={true}/>
         </AI>
       </div>
-      <FooterText className="py-8" />
     </>
   )
 }
